@@ -77,7 +77,7 @@ for c in cnts:
 	# should be sufficiently wide, sufficiently tall, and
 	# habe an aspect ratio approximately equal to 1
 	if w>=20 and h>=20 and ar>=0.9 and ar<=1.1:
-		questionCnts.appends(c)
+		questionCnts.append(c)
 
 # sort the question contours top-to-bottom, then initialize
 # the total number of correct answers
@@ -93,3 +93,44 @@ for (q, i) in enumerate(np.arange(0, len(questionCnts), 5)):
 	# bubbled answer
 	cnts = contours.sort_contours(questionCnts[i:i + 5])[0]
 	bubbled = None
+
+	# loop over the sorted contours
+	for (j, c) in enumerate(cnts):
+		# construct a mask that reveals only the current
+		# "bubble" for the question
+		mask = np.zeros(thresh.shape, dtype="uint8")
+		cv2.drawContours(mask, [c], -1, 255, -1)
+ 
+		# apply the mask to the thresholded image, then
+		# count the number of non-zero pixels in the
+		# bubble area
+		mask = cv2.bitwise_and(thresh, thresh, mask=mask)
+		total = cv2.countNonZero(mask)
+ 
+		# if the current total has a larger number of total
+		# non-zero pixels, then we are examining the currently
+		# bubbled-in answer
+		if bubbled is None or total > bubbled[0]:
+			bubbled = (total, j)
+
+	# initialize the contour color and the index of the 
+	# *correct* answer
+	color = (0, 0, 255)
+	k = ANSWER_KEY[q]
+
+	# check to see if the bubbled answer is correct
+	if k == bubbled[1]:
+		color = (0, 255, 0)
+		correct += 1
+
+	# draw the outline of the correct answer on the test
+	cv2.drawContours(paper, [cnts[k]], -1, color, 3)
+
+# grab the test taker
+score = (correct / 5.0) * 100
+print("[INFO] score: {:.2f}%".format(score))
+cv2.putText(paper, "{:.2f}%".format(score), (10, 30),
+	cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+cv2.imshow("Original", image)
+cv2.imshow("Exam", paper)
+cv2.waitKey(0)
